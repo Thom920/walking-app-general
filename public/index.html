@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="nl">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wandel-app</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <!-- Header -->
+  <header>
+    <h1>Wandel-app</h1>
+    <p>Kies hoelang je wilt wandelen en maak een rondje in de buurt.</p>
+  </header>
+
+  <!-- Main -->
+  <main>
+    <!-- Duur keuzes sectie -->
+    <section class="controls">
+      <h2>Duur</h2>
+      <div class="duration-options">
+        <label>
+          <input type="radio" name="minutes" value="30">
+          30 min
+        </label>
+        <label>
+          <input type="radio" name="minutes" value="60">
+          1 uur
+        </label>
+        <label>
+          <input type="radio" name="minutes" value="120">
+          2 uur
+        </label>
+        <label>
+          <input type="radio" name="minutes" value="240">
+          4 uur
+        </label>
+      </div>
+
+      <!-- Buttons sectie -->
+      <div class="buttons">
+        <button type="button" id="btn-make-route">Maak route</button>
+        <button type="button" id="btn-start" disabled>Start</button>
+        <button type="button" id="btn-finish" disabled>Klaar</button>
+        <button type="button" id="btn-new" disabled>Nieuw</button>
+      </div>
+    </section>
+
+    <!-- Foutmeldings bericht -->
+    <div id="message" class="message hidden" role="alert"></div>
+
+    <!-- Uitkomst wandeling bericht -->
+    <p id="walk-result" class="walk-result hidden"></p>
+
+    <!-- Kaart sectie -->
+    <section class="map-section">
+      <div id="map"></div>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="app.js"></script>
+</body>
+
+</html>
