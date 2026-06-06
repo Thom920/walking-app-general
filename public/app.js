@@ -167,20 +167,31 @@ function clearRouteLayer() {
 }
 
 // L.geoJSON leest het GeoJSON-formaat van OpenRouteService en maakt er een lijn van
-function drawRoute(geoJson) {
+function drawRoute(geoJson, userLat, userLng) {
   routeLayer = L.geoJSON(geoJson, {
     style: {
       color: ROUTE_COLOR, // groene lijn
       weight: 5,          // dikte van de lijn in pixels
     },
   }).addTo(map); // plak de routelijn op de kaart
+
+  // Groen puntje = hier begin je (jouw GPS-locatie bij Maak route)
+  L.circleMarker([userLat, userLng], {
+    radius: 7,
+    fillColor: ROUTE_COLOR, // groene vulkleur
+    color: '#ffffff', // witte rand om het puntje
+    weight: 2, // dikte van die rand
+    fillOpacity: 1, // volledig zichtbaar (niet doorzichtig)
+  }).addTo(routeLayer);
+
+  return routeLayer; // return de lijn
 }
 
 // Hoofdfunctie: zet de route uit de server (GeoJSON) als groene lijn op de kaart
 function showRouteOnMap(geoJson, lat, lng) {
   initMap(lat, lng);    // stap 1: zorg dat de kaart bestaat en op de juiste plek staat
   clearRouteLayer();    // stap 2: verwijder eventuele oude lijn
-  drawRoute(geoJson);   // stap 3: teken de nieuwe route
+  drawRoute(geoJson, lat, lng);
 
   // fitBounds zoomt de kaart automatisch zodat de hele route in beeld past
   // padding = een beetje ruimte rondom de route zodat de lijn niet tegen de rand plakt
