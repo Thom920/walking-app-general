@@ -9,6 +9,15 @@ const walkResultEl = document.getElementById('walk-result');
 // Bewaart de route die de server terugstuurt (GeoJSON)
 let routeData = null;
 
+// --- Variabelen voor de kaart ---
+// map = het Leaflet-kaartobject (de hele interactieve kaart)
+// routeLayer = de groene lijn die de wandelroute tekent
+// Beide starten als null omdat er nog geen kaart is bij het laden van de pagina
+let map = null;
+let routeLayer = null;
+// Kleur van de routelijn (zelfde groen als de accentkleur in style.css)
+const ROUTE_COLOR = '#2d6a4f';
+
 // Toon een melding aan de gebruiker in het groene/rode vak (#message)
 function showMessage(text, isSuccess = false) {
   messageEl.textContent = text;
@@ -106,6 +115,56 @@ async function fetchRoute(lat, lng, minutes) {
   return data; // de route (GeoJSON) — wordt opgeslagen in routeData
 }
 
+// --- Kaart (Leaflet) ---
+
+// Start de kaart en zet hem op de locatie van de gebruiker
+function initMap(lat, lng) {
+  // Bestaat de kaart al? Alleen centreren, niet opnieuw aanmaken
+  if (map) {
+    map.setView([lat, lng], 15); // [lat, lng] = Leaflet-volgorde, 15 = zoomniveau
+    return;
+  }
+
+  // L.map('map') koppelt Leaflet aan de div met id="map" in index.html
+  // setView = waar de kaart op centreert en hoe ver ingezoomd (15 = wijk-niveau)
+  map = L.map('map').setView([lat, lng], 15);
+
+  // tileLayer = de achtergrondplaatjes van de kaart (straten, water, gebouwen)
+  // OpenStreetMap levert die gratis aan; Leaflet laadt ze automatisch per stukje
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap', // verplichte bronvermelding
+  }).addTo(map); // plak de achtergrond op de kaart
+}
+
+// Haal de oude routelijn weg voordat een nieuwe getekend wordt
+function clearRouteLayer() {
+  if (routeLayer && map) {
+    map.removeLayer(routeLayer); // verwijder de lijn van de kaart
+    routeLayer = null;           // reset zodat er geen lijn meer is
+  }
+}
+
+// L.geoJSON leest het GeoJSON-formaat van OpenRouteService en maakt er een lijn van
+function drawRoute(geoJson) {
+  routeLayer = L.geoJSON(geoJson, {
+    style: {
+      color: ROUTE_COLOR, // groene lijn
+      weight: 5,          // dikte van de lijn in pixels
+    },
+  }).addTo(map); // plak de routelijn op de kaart
+}
+
+// Hoofdfunctie: zet de route uit de server (GeoJSON) als groene lijn op de kaart
+function showRouteOnMap(geoJson, lat, lng) {
+  initMap(lat, lng);    // stap 1: zorg dat de kaart bestaat en op de juiste plek staat
+  clearRouteLayer();    // stap 2: verwijder eventuele oude lijn
+  drawRoute(geoJson);   // stap 3: teken de nieuwe route
+
+  // fitBounds zoomt de kaart automatisch zodat de hele route in beeld past
+  // padding = een beetje ruimte rondom de route zodat de lijn niet tegen de rand plakt
+  map.fitBounds(routeLayer.getBounds(), { padding: [30, 30] });
+}
+
 // --- Alles wat er gebeurt bij een klik op "Maak route" ---
 // async = deze functie mag wachten op GPS en op het antwoord van de server
 async function handleMakeRoute() {
@@ -135,7 +194,10 @@ async function handleMakeRoute() {
     showMessage('Route wordt gemaakt...', true);
     routeData = await fetchRoute(lat, lng, minutes);
 
-    // Stap 4: alles gelukt — verberg melding en zet knoppen goed (Start wordt actief)
+    // Stap 4: teken de opgehaalde route op de Leaflet-kaart
+    showRouteOnMap(routeData, lat, lng);
+
+    // Stap 5: alles gelukt — verberg melding en zet knoppen goed (Start wordt actief)
     hideMessage();
     setButtonsAfterRoute();
   } catch (error) {
