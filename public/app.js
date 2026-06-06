@@ -61,7 +61,7 @@ function setButtonsAfterRoute() {
   btnMakeRoute.disabled = true;  // route is al gemaakt
   btnStart.disabled = false;     // gebruiker mag nu gaan wandelen
   btnFinish.disabled = true;   // nog niet aan het wandelen
-  btnNew.disabled = true;      // nog niets te resetten
+  btnNew.disabled = false;      // als je een nieuwe route wilt maken
 }
 
 // Zet knoppen terug naar de beginsituatie
