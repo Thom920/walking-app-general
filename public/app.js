@@ -18,6 +18,12 @@ let routeLayer = null;
 // Kleur van de routelijn (zelfde groen als de accentkleur in style.css)
 const ROUTE_COLOR = '#2d6a4f';
 
+// --- Variabelen voor wandelen ---
+let watchId = null;        // ID van de lopende GPS-tracking (nodig om te stoppen)
+let userMarker = null;     // blauw puntje op de kaart
+let walkStartTime = null;  // tijdstip waarop op Start is geklikt
+const USER_MARKER_COLOR = '#3388ff';
+
 // Toon een melding aan de gebruiker in het groene/rode vak (#message)
 function showMessage(text, isSuccess = false) {
   messageEl.textContent = text;
@@ -64,6 +70,22 @@ function setButtonsInitial() {
   btnStart.disabled = true;
   btnFinish.disabled = true;
   btnNew.disabled = true;
+}
+
+// Tijdens het wandelen: alleen Klaar is actief
+function setButtonsDuringWalk() {
+  btnMakeRoute.disabled = true;
+  btnStart.disabled = true;
+  btnFinish.disabled = false;
+  btnNew.disabled = true;
+}
+
+// Na Klaar: alleen Nieuw is actief
+function setButtonsAfterFinish() {
+  btnMakeRoute.disabled = true;
+  btnStart.disabled = true;
+  btnFinish.disabled = true;
+  btnNew.disabled = false;
 }
 
 // --- GPS ophalen ---
@@ -165,6 +187,116 @@ function showRouteOnMap(geoJson, lat, lng) {
   map.fitBounds(routeLayer.getBounds(), { padding: [30, 30] });
 }
 
+// --- Wandelen ---
+
+// Stop de GPS-tracking die bij Start is begonnen
+function stopWatching() {
+  if (watchId !== null) {
+    navigator.geolocation.clearWatch(watchId);
+    watchId = null;
+  }
+}
+
+// Verwijder het blauwe puntje van de kaart
+function clearUserMarker() {
+  if (userMarker && map) {
+    map.removeLayer(userMarker);
+    userMarker = null;
+  }
+}
+
+// Tekent of verplaatst het blauwe puntje op de kaart
+// Wordt steeds opnieuw aangeroepen zolang GPS-tracking loopt (bij Start)
+function updateUserPosition(lat, lng) {
+  // Geen kaart? Dan kunnen we niets tekenen
+  if (!map) {
+    return;
+  }
+
+  // Bestaat het puntje al? Alleen verplaatsen naar de nieuwe GPS-positie
+  if (userMarker) {
+    userMarker.setLatLng([lat, lng]);
+    return;
+  }
+
+  // Eerste keer: maak een blauw cirkeltje op de kaart
+  userMarker = L.circleMarker([lat, lng], {
+    radius: 8,                      // grootte van het puntje
+    fillColor: USER_MARKER_COLOR,   // blauwe vulkleur
+    color: '#ffffff',               // witte rand om het puntje
+    weight: 2,                      // dikte van die rand
+    fillOpacity: 1,                 // volledig zichtbaar (niet doorzichtig)
+  }).addTo(map);
+}
+
+// --- Klik op "Start" ---
+function handleStart() {
+  hideMessage();
+  hideWalkResult();
+
+  // Controleer of GPS wordt ondersteund door de browser anders fout melding tonen
+  if (!navigator.geolocation) {
+    showMessage('GPS wordt niet ondersteund door je browser.');
+    return;
+  }
+
+  // Onthoud het moment waarop de wandeling begint (in milliseconden sinds 1970)
+  walkStartTime = Date.now();
+
+  // watchPosition blijft je locatie opvragen (anders dan getCurrentPosition, dat is één keer)
+  // Elke keer als de GPS een nieuwe positie heeft, verplaatst het blauwe puntje
+  watchId = navigator.geolocation.watchPosition(
+    (position) => {
+      updateUserPosition(position.coords.latitude, position.coords.longitude);
+    },
+    () => {
+      showMessage('GPS-signaal verloren. Controleer je locatie-instellingen.');
+    },
+    { enableHighAccuracy: true } // zo nauwkeurig mogelijk tijdens het wandelen
+  );
+
+  setButtonsDuringWalk(); // alleen "Klaar" is nu actief
+}
+
+// --- Klik op "Klaar" ---
+function handleFinish() {
+  stopWatching(); // stop met GPS volgen
+
+  // Reken uit hoeveel minuten er zijn verstreken sinds Start
+  // Date.now() - walkStartTime = milliseconden → delen door 60000 = minuten
+  const walkedMinutes = walkStartTime
+    ? Math.round((Date.now() - walkStartTime) / 60000)
+    : 0;
+
+  // Toon het resultaat in het groene vak onder de knoppen
+  walkResultEl.textContent = `Je hebt ${walkedMinutes} minuten gewandeld.`;
+  walkResultEl.classList.remove('hidden');
+
+  walkStartTime = null;
+  setButtonsAfterFinish(); // alleen "Nieuw" is nu actief
+}
+
+// --- Klik op "Nieuw" ---
+// Zet alles terug zodat je opnieuw een wandeling kunt plannen
+function handleNew() {
+  stopWatching();     // stop eventuele lopende GPS-tracking
+  clearUserMarker();  // verwijder blauw puntje
+  clearRouteLayer();  // verwijder groene routelijn
+
+  routeData = null;
+  walkStartTime = null;
+
+  hideMessage();
+  hideWalkResult();
+
+  // Maak de duur-keuze (30 min / 1 uur / etc.) weer leeg
+  document.querySelectorAll('input[name="minutes"]').forEach((radio) => {
+    radio.checked = false;
+  });
+
+  setButtonsInitial(); // terug naar beginsituatie: alleen "Maak route" actief
+}
+
 // --- Alles wat er gebeurt bij een klik op "Maak route" ---
 // async = deze functie mag wachten op GPS en op het antwoord van de server
 async function handleMakeRoute() {
@@ -208,8 +340,11 @@ async function handleMakeRoute() {
   }
 }
 
-// Koppel de klik op "Maak route" aan de functie hierboven
+// Event listeners voor de knoppen
 btnMakeRoute.addEventListener('click', handleMakeRoute);
+btnStart.addEventListener('click', handleStart);
+btnFinish.addEventListener('click', handleFinish);
+btnNew.addEventListener('click', handleNew);
 
 // Zorg dat knoppen bij het laden van de pagina in de juiste staat staan
 setButtonsInitial();
