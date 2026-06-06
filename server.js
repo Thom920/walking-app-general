@@ -7,8 +7,8 @@ const path = require('path');
 
 // Maak een nieuwe Express-app aan
 const app = express();
-// Poort waarop de server luistert (uit .env, of anders 3000)
-const PORT = process.env.PORT || 3000;
+// Poort waarop de server luistert
+const PORT = 3000;
 
 // Toegestane wandeltijden in minuten
 const ALLOWED_MINUTES = [30, 60, 120, 240];
@@ -30,7 +30,7 @@ app.post('/api/route', async (req, res) => {
   // Haal de API-key op uit .env — alleen de server ziet deze, nooit de browser.
   const apiKey = process.env.OPENROUTESERVICE_API_KEY;
 
-  // Geen key? Dan kunnen we geen route ophalen. Stop meteen met een foutmelding.
+  // Geen key? Dan kan er geen route worden opgehaald. Stop meteen met een foutmelding.
   if (!apiKey) {
     return res.status(500).json({ error: 'API-key ontbreekt op de server.' });
   }
@@ -60,7 +60,7 @@ app.post('/api/route', async (req, res) => {
   // OpenRouteService wil afstand in meters, niet in minuten — dus eerst omrekenen.
   const lengthMeters = minutesToMeters(minutes);
 
-  // try/catch: als het internet of OpenRouteService faalt, vangen we de fout op.
+  // try/catch: als het internet of OpenRouteService faalt, wordt de fout opgevangen.
   try {
     // fetch = een verzoek sturen naar een andere server (hier: OpenRouteService).
     const response = await fetch(
@@ -68,9 +68,12 @@ app.post('/api/route', async (req, res) => {
       {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json', // we sturen JSON
+          'Content-Type': 'application/json', // stuur json naar OpenRouteService
           Authorization: apiKey,               // onze geheime key als bewijs dat we mogen bellen
         },
+        // body = de data die wordt meegestuurd in het POST-verzoek (het "pakketje" naar OpenRouteService).
+        // JSON.stringify zet een JavaScript-object om naar JSON-tekst, bijv. {"coordinates":[[5.12,52.09]],...}
+        // Dat moet, want over het internet wordt data als tekst verstuurd, niet als JavaScript-object.
         body: JSON.stringify({
           // OpenRouteService wil coördinaten als [lng, lat] — let op: andere volgorde dan gebruikelijk!
           coordinates: [[lng, lat]],
