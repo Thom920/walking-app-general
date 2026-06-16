@@ -15,7 +15,7 @@ const ALLOWED_MINUTES = [30, 60, 120, 240];
 
 // Zet minuten om naar geschatte afstand in meters (uitgaande van 5 km/u wandeltempo)
 function minutesToMeters(minutes) {
-  return Math.round((minutes / 60) * 5000);
+  return Math.round((minutes / 60) * 3800);
 }
 
 // Zet JSON om naar een JavaScript-object.
@@ -60,6 +60,12 @@ app.post('/api/route', async (req, res) => {
   // OpenRouteService wil afstand in meters, niet in minuten — dus eerst omrekenen.
   const lengthMeters = minutesToMeters(minutes);
 
+  // seed = willekeurige richting voor het rondje (zelfde startpunt → andere route).
+  const seed = Math.floor(Math.random() * 1_000_000);
+
+  // Meer punten = ronder rondje, minder rare 180°-draaien en heen-en-weer oversteken.
+  const routePoints = minutes >= 120 ? 6 : 5;
+
   // try/catch: als het internet of OpenRouteService faalt, wordt de fout opgevangen.
   try {
     // fetch = een verzoek sturen naar een andere server (hier: OpenRouteService).
@@ -77,10 +83,13 @@ app.post('/api/route', async (req, res) => {
         body: JSON.stringify({
           // OpenRouteService wil coördinaten als [lng, lat] — let op: andere volgorde dan gebruikelijk!
           coordinates: [[lng, lat]],
+          // recommended = natuurlijkere wandelpaden dan de standaard "fastest".
+          preference: 'recommended',
           options: {
             round_trip: {
               length: lengthMeters, // hoe lang het rondje ongeveer moet zijn
-              points: 3,            // aantal tussenpunten (meer = ronder rondje)
+              points: routePoints,  // aantal tussenpunten (meer = ronder rondje)
+              seed,                 // andere seed = andere kant op lopen
             },
           },
         }),
